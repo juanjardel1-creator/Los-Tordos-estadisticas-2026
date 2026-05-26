@@ -3418,15 +3418,23 @@ function openJugador(name){
     const antInfo = nAnt>0 && minAntTotal>0
       ? `<span style="font-size:10px;color:var(--muted);margin-left:8px;">vs ${nAnt}p ant. (${minAntTotal}min)</span>` : '';
 
+    // Find the torneo that contains this partido
+    const _torneoDeEstePartido = TORNEOS.find(t=>t.partidos.includes(partido));
+    const _escapedName = name.replace(/'/g,"\\''");
+    const _verPartidoBtn = `<button onclick="event.stopPropagation();closeJugDetail();_irAIndividualesJugador('${partido.id||''}','${_escapedName}')" style="background:rgba(200,168,75,.12);border:1px solid var(--gold);border-radius:6px;padding:4px 10px;color:var(--gold);cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:1px;white-space:nowrap;transition:all .2s;" onmouseover="this.style.background='var(--gold)';this.style.color='var(--navy)'" onmouseout="this.style.background='rgba(200,168,75,.12)';this.style.color='var(--gold)'">👤 Ver Ficha</button>`;
+
     return `<div class="jug-partido-row">
       <div class="jpr-header">
-        <div>
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
           <span class="jpr-rival">vs ${partido.rival}</span>
           <span class="pm-badge ${res}" style="margin-left:8px;">${resLabel}</span>
           <span style="margin-left:8px;font-family:'DM Mono',monospace;font-size:12px;color:${resColor}">${partido.tordos_score}–${partido.rival_score}</span>
           ${minBadge}${antInfo}
         </div>
-        <span class="jpr-fecha">${partido.fecha}</span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="jpr-fecha">${partido.fecha}</span>
+          ${_verPartidoBtn}
+        </div>
       </div>
       ${statItems ? '<div class="jpr-stats">'+statItems+'</div>' : '<span style="font-size:11px;color:var(--muted)">Sin acciones registradas</span>'}
     </div>`;
@@ -3442,6 +3450,40 @@ function openJugador(name){
 function closeJugDetail(){
   document.getElementById('jugDetailModal').classList.remove('open');
   document.querySelectorAll('.jug-card').forEach(c=>c.classList.remove('active'));
+}
+
+function _irAlPartido(partidoId){
+  var found = null, torneoFound = null;
+  for(var i=0;i<TORNEOS.length;i++){
+    var p = TORNEOS[i].partidos.find(function(x){return x.id===partidoId;});
+    if(p){ found=p; torneoFound=TORNEOS[i]; break; }
+  }
+  if(!found) return;
+  currentTorneo = torneoFound;
+  openPartido(found);
+  document.querySelectorAll(".nav-tab").forEach(function(t){t.classList.remove("active");});
+  document.getElementById("tab-torneos").classList.add("active");
+}
+
+function _irAIndividualesJugador(partidoId, playerName){
+  var found = null, torneoFound = null;
+  for(var i=0;i<TORNEOS.length;i++){
+    var p = TORNEOS[i].partidos.find(function(x){return x.id===partidoId;});
+    if(p){ found=p; torneoFound=TORNEOS[i]; break; }
+  }
+  if(!found) return;
+  currentTorneo = torneoFound;
+  currentPartido = found;
+  document.querySelectorAll(".nav-tab").forEach(function(t){t.classList.remove("active");});
+  document.getElementById("tab-torneos").classList.add("active");
+  openIndividuales();
+  setTimeout(function(){
+    var allPlayers = PLAYERS_CUR;
+    var player = allPlayers.find(function(x){
+      return x.name.trim().toLowerCase() === playerName.trim().toLowerCase();
+    });
+    if(player) showDetail(player);
+  }, 80);
 }
 
 // ════════════════════════════════════════
@@ -3524,11 +3566,12 @@ function renderPartidosStats(){
   </tr></thead>`;
 
   const rows = allPartidos.map(p=>{
+    const clickStyle = `style="cursor:pointer;" title="Ver partido vs ${p.rival}" onclick="_irAlPartido('${p.id||''}')"`;
     if(!p.partido_stats){
       const scoreStr = (p.tordos_score!=null && p.rival_score!=null)
         ? ` ${p.tordos_score}–${p.rival_score}` : '';
-      return `<tr>
-        <td>${p.fecha} vs ${p.rival}</td>
+      return `<tr ${clickStyle}>
+        <td>${p.fecha} vs ${p.rival} <span style="font-size:10px;color:var(--gold);margin-left:4px;">▶</span></td>
         <td>${p.es_local?'Local':'Visit.'}</td>
         <td><span class="pm-badge ${p.resultado}">${p.resultado==='W'?'G':p.resultado==='L'?'P':'E'}</span>${scoreStr}</td>
         <td style="color:var(--green);font-weight:600">${p.tordos_score!=null?p.tordos_score:'—'}</td>
@@ -3537,8 +3580,8 @@ function renderPartidosStats(){
       </tr>`;
     }
     const s = p.partido_stats;
-    return `<tr>
-      <td style="font-weight:600">${p.fecha} <span style="color:var(--muted);font-weight:400">vs ${p.rival}</span></td>
+    return `<tr ${clickStyle}>
+      <td style="font-weight:600">${p.fecha} <span style="color:var(--muted);font-weight:400">vs ${p.rival}</span> <span style="font-size:10px;color:var(--gold);margin-left:4px;">▶</span></td>
       <td style="color:var(--muted)">${p.es_local?'Local':'Visit.'}</td>
       <td><span class="pm-badge ${p.resultado}">${p.resultado==='W'?'G':p.resultado==='L'?'P':'E'}</span> ${p.tordos_score}–${p.rival_score}</td>
       <td style="color:var(--green);font-weight:600">${p.tordos_score}</td>
